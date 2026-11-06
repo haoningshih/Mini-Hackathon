@@ -1,0 +1,6 @@
+{
+  "name": "Duolingo Immersion - Personalized Objectives & AI Conversation",
+  "description": "Personalized Duolingo learning paths tailored to specific user objectives (travel, work, relocation), featuring real-time AI roleplay conversations, instant in-chat tutor Q&A, and comprehensive post-conversation skill diagnostic reports with targeted remediation drills.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
