@@ -11,17 +11,19 @@ const PORT = 3000;
 
 app.use(express.json());
 
-// Initialize GoogleGenAI SDK
-let ai: GoogleGenAI | null = null;
-if (process.env.GEMINI_API_KEY) {
-  ai = new GoogleGenAI({
-    apiKey: process.env.GEMINI_API_KEY,
-    httpOptions: {
-      headers: {
-        'User-Agent': 'aistudio-build',
+// Get or initialize GoogleGenAI SDK dynamically per request
+function getAIClient(): GoogleGenAI | null {
+  if (process.env.GEMINI_API_KEY) {
+    return new GoogleGenAI({
+      apiKey: process.env.GEMINI_API_KEY,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
       },
-    },
-  });
+    });
+  }
+  return null;
 }
 
 // ----------------------------------------------------
@@ -35,9 +37,10 @@ app.post('/api/chat/respond', async (req, res) => {
     const goal = objective?.goal || 'traveling';
     const scenario = objective?.scenario || 'Ordering at a lively tapas bar';
 
+    const ai = getAIClient();
     if (!ai) {
       // High-quality contextual fallback
-      return res.json(getFallbackResponse(targetLanguage, messages, scenario));
+      return res.json(getFallbackResponse(targetLanguage, messages, scenario, persona, userLevel, goal));
     }
 
     const systemPrompt = `You are playing an authentic character in an immersive language conversation for Duolingo.
@@ -117,8 +120,17 @@ Output MUST be strictly valid JSON matching the requested structure.`;
     return res.json(parsed);
   } catch (error: any) {
     console.error('Error in /api/chat/respond:', error);
-    const { messages, objective } = req.body;
-    return res.json(getFallbackResponse(objective?.language || 'Spanish', messages, objective?.scenario));
+    const { messages, objective, persona } = req.body;
+    return res.json(
+      getFallbackResponse(
+        objective?.language || 'Spanish',
+        messages,
+        objective?.scenario,
+        persona,
+        objective?.level,
+        objective?.goal
+      )
+    );
   }
 });
 
@@ -130,6 +142,7 @@ app.post('/api/chat/ask-tutor', async (req, res) => {
     const { question, contextSnippet, language, objective } = req.body;
     const targetLanguage = language || 'Spanish';
 
+    const ai = getAIClient();
     if (!ai) {
       return res.json(getFallbackTutorAnswer(question, targetLanguage));
     }
@@ -204,6 +217,7 @@ app.post('/api/chat/generate-report', async (req, res) => {
     const level = objective?.level || 'A2';
     const scenario = objective?.scenario || 'Real-life conversation';
 
+    const ai = getAIClient();
     if (!ai) {
       return res.json(getFallbackReport(targetLanguage, goal, level, conversationHistory));
     }
@@ -348,65 +362,363 @@ Analyze the entire conversation log thoroughly. Assess:
 // ----------------------------------------------------
 // Fallback Utilities (Guarantees smooth demo & testing)
 // ----------------------------------------------------
-function getFallbackResponse(lang: string, messages: any[], scenario?: string) {
-  const lastUserMsg = messages && messages.length > 0 ? messages[messages.length - 1].content : '';
-  
+// ----------------------------------------------------
+// Fallback Utilities (Intelligent, Personalized Conversational Engine)
+// ----------------------------------------------------
+function getFallbackResponse(
+  lang: string,
+  messages: any[],
+  scenario?: string,
+  persona?: any,
+  userLevel?: string,
+  goal?: string
+) {
+  const userMessages = (messages || []).filter((m: any) => m.role === 'user');
+  const userTurnCount = userMessages.length;
+  const lastUserMsg = userMessages[userMessages.length - 1]?.content || userMessages[userMessages.length - 1]?.text || '';
+  const lower = lastUserMsg.toLowerCase().trim();
+  const personaName = persona?.name || (lang.toLowerCase().includes('french') ? 'Valérie' : 'Mateo');
+  const scenarioTitle = scenario || 'Ordering at a lively tapas bar';
+
+  // 1. Dynamic Grammar & Nuance Detection
+  let gentleCorrection = {
+    hasMistake: false,
+    originalPhrase: '',
+    improvedPhrase: '',
+    explanation: '',
+  };
+
+  if (lower.includes('yo quiero')) {
+    gentleCorrection = {
+      hasMistake: true,
+      originalPhrase: 'yo quiero',
+      improvedPhrase: 'Quisiera / Me gustaría',
+      explanation: 'Saying "Quisiera" or "Me gustaría" sounds much more courteous and natural in public establishments than direct "yo quiero".',
+    };
+  } else if (lower.includes('el agua frío')) {
+    gentleCorrection = {
+      hasMistake: true,
+      originalPhrase: 'el agua frío',
+      improvedPhrase: 'el agua fría',
+      explanation: 'Even though "agua" takes "el" in the singular to prevent double-a vowel clash, it remains grammatically feminine, so adjectives take the feminine ending (-a).',
+    };
+  } else if (lower.includes('gracias para')) {
+    gentleCorrection = {
+      hasMistake: true,
+      originalPhrase: 'gracias para',
+      improvedPhrase: 'gracias por',
+      explanation: 'In Spanish, always use "por" when expressing gratitude or cause (e.g. "gracias por su ayuda").',
+    };
+  } else if (lower.includes('soy cansado')) {
+    gentleCorrection = {
+      hasMistake: true,
+      originalPhrase: 'soy cansado',
+      improvedPhrase: 'estoy cansado',
+      explanation: 'Use the verb "estar" for temporary physical states and feelings, and "ser" for permanent characteristics.',
+    };
+  } else if (lower.includes('je veux')) {
+    gentleCorrection = {
+      hasMistake: true,
+      originalPhrase: 'je veux',
+      improvedPhrase: 'je voudrais',
+      explanation: '"Je voudrais" (I would like) is the polite standard in restaurants and service in French, whereas "je veux" sounds demanding.',
+    };
+  }
+
+  // 2. Spanish Dynamic Contextual Engine
   if (lang.toLowerCase().includes('spanish')) {
+    // A. Tapas Bar / Dining Scenario
+    if (scenarioTitle.toLowerCase().includes('tapas') || scenarioTitle.toLowerCase().includes('bar') || scenarioTitle.toLowerCase().includes('order')) {
+      // Intent: Asking for the bill / check
+      if (lower.includes('cuenta') || lower.includes('cobrar') || lower.includes('pagar') || lower.includes('tarjeta') || lower.includes('efectivo')) {
+        if (lower.includes('tarjeta') || lower.includes('efectivo')) {
+          return {
+            reply: '¡Perfecto! El pago ha sido procesado correctamente. Aquí tiene su copia del recibo. Ha sido un placer atenderle, ¡muchas gracias por su visita y que disfrute de su noche en Madrid!',
+            translation: 'Perfect! The payment has been processed successfully. Here is your receipt copy. It has been a pleasure serving you, thank you very much for your visit and enjoy your evening in Madrid!',
+            culturalTip: 'In Spain, tipping is customary as small change rounded up (5-10%), but not strictly mandatory.',
+            gentleCorrection,
+            vocabHints: [
+              { word: 'el recibo', meaning: 'the receipt', partOfSpeech: 'noun' },
+              { word: 'procesar', meaning: 'to process', partOfSpeech: 'verb' },
+              { word: 'atender', meaning: 'to attend / serve', partOfSpeech: 'verb' }
+            ],
+            suggestedReplies: [
+              '¡Muchas gracias por todo! Hasta luego.',
+              'La comida estaba deliciosa, volveremos.',
+              'Buenas noches y que tenga un buen turno.'
+            ]
+          };
+        }
+
+        return {
+          reply: '¡Enseguida se la acerco! Aquí tiene el ticket desglosado: son 19,50 euros en total por las tapas y las bebidas. ¿Prefiere abonarlo con tarjeta de crédito o en efectivo?',
+          translation: 'I will bring it right over! Here is the itemized bill: it is 19.50 euros in total for the tapas and drinks. Do you prefer paying by credit card or cash?',
+          culturalTip: 'In Spain, servers rarely bring the bill to your table unless you explicitly ask for it ("¿Nos trae la cuenta?").',
+          gentleCorrection,
+          vocabHints: [
+            { word: 'desglosado', meaning: 'itemized / broken down', partOfSpeech: 'adjective' },
+            { word: 'abonar', meaning: 'to settle / pay', partOfSpeech: 'verb' },
+            { word: 'efectivo', meaning: 'cash', partOfSpeech: 'noun' }
+          ],
+          suggestedReplies: [
+            'Con tarjeta de crédito, por favor.',
+            'En efectivo, aquí tiene 20 euros.',
+            '¿Podemos pagar por separado?'
+          ]
+        };
+      }
+
+      // Intent: Ordering Drinks
+      if (lower.includes('vino') || lower.includes('cerveza') || lower.includes('caña') || lower.includes('agua') || lower.includes('refresco') || lower.includes('copa')) {
+        const drinkType = lower.includes('vino') ? 'la copa de vino' : lower.includes('cerveza') || lower.includes('caña') ? 'la caña bien fría' : 'la bebida fresca';
+        return {
+          reply: `¡Marchando ${drinkType}! Se la sirvo ahora mismo con un platito de aceitunas marinadas. Hoy el chef tiene tortilla de patatas recién cuajada y croquetas de jamón ibérico de bellota. ¿Le gustaría pedir alguna ración para acompañar?`,
+          translation: `Right away with ${drinkType}! I'll serve it right now with a little dish of marinated olives. Today the chef has freshly made Spanish potato omelet and acorn-fed Iberian ham croquettes. Would you like to order a dish to go with it?`,
+          culturalTip: 'In many Spanish regions (like Madrid and Granada), ordering a drink automatically comes with a complimentary small tapa!',
+          gentleCorrection,
+          vocabHints: [
+            { word: 'marchando', meaning: 'coming right up! (kitchen slang)', partOfSpeech: 'idiom' },
+            { word: 'recién cuajada', meaning: 'freshly set / cooked', partOfSpeech: 'adjective' },
+            { word: 'la ración', meaning: 'a full serving / portion', partOfSpeech: 'noun' }
+          ],
+          suggestedReplies: [
+            'Quisiera media ración de tortilla de patatas, por favor.',
+            '¿Las croquetas llevan jamón ibérico?',
+            '¿Qué me recomienda de la casa?'
+          ]
+        };
+      }
+
+      // Intent: Ordering Tapas or Food
+      if (lower.includes('tapa') || lower.includes('tortilla') || lower.includes('croqueta') || lower.includes('brava') || lower.includes('jamón') || lower.includes('paella') || lower.includes('comer') || lower.includes('plato')) {
+        return {
+          reply: '¡Una elección inmejorable! Nuestra tortilla es jugosa por dentro y las croquetas son crujientes y caseras. Ya lo he pasado a la comanda de cocina. ¿Tiene alguna alergia alimentaria o intolerancia que deba comunicar al chef?',
+          translation: 'An unbeatable choice! Our potato omelet is juicy on the inside and the croquettes are crispy and homemade. I have already sent it to the kitchen ticket. Do you have any food allergies or intolerances I should notify the chef about?',
+          culturalTip: 'In Spain, you can often order a "ración" (full portion) or "media ración" (half portion) to share with friends.',
+          gentleCorrection,
+          vocabHints: [
+            { word: 'inmejorable', meaning: 'unbeatable / excellent', partOfSpeech: 'adjective' },
+            { word: 'la comanda', meaning: 'the kitchen order ticket', partOfSpeech: 'noun' },
+            { word: 'alergia alimentaria', meaning: 'food allergy', partOfSpeech: 'noun' }
+          ],
+          suggestedReplies: [
+            'No tengo ninguna alergia, todo perfecto.',
+            'Soy vegetariano, ¿lleva carne o caldo de carne?',
+            '¿Tienen pan sin gluten?'
+          ]
+        };
+      }
+
+      // Intent: Table / Seating / Greeting
+      if (lower.includes('mesa') || lower.includes('persona') || lower.includes('dos') || lower.includes('barra') || lower.includes('hola') || lower.includes('buenas')) {
+        const hasCount = lower.includes('dos') ? 'dos personas' : lower.includes('tres') ? 'tres personas' : lower.includes('cuatro') ? 'cuatro personas' : 'ustedes';
+        return {
+          reply: `¡Por supuesto! Justo tengo una mesa acogedora para ${hasCount} al lado del ventanal. Siéntense cómodos. Para abrir el apetito, ¿les gustaría una caña bien tirada o prefieren ver la carta de vinos y tapas primero?`,
+          translation: `Of course! I have just the cozy table for ${hasCount} right next to the window. Make yourselves comfortable. To open your appetite, would you like a freshly poured beer or do you prefer to see the wine and tapas menu first?`,
+          culturalTip: 'In traditional tapas bars in Spain, eating while standing at the bar ("en la barra") is very popular and lively!',
+          gentleCorrection,
+          vocabHints: [
+            { word: 'acogedor', meaning: 'cozy / welcoming', partOfSpeech: 'adjective' },
+            { word: 'bien tirada', meaning: 'poured with perfect foam (for beer)', partOfSpeech: 'idiom' },
+            { word: 'abrir el apetito', meaning: 'to whet the appetite', partOfSpeech: 'phrase' }
+          ],
+          suggestedReplies: [
+            'Quisiéramos ver la carta de vinos, por favor.',
+            'Dos cañas frías para empezar, gracias.',
+            '¿Cuál es la especialidad de la casa?'
+          ]
+        };
+      }
+
+      // Default contextual progression for Tapas
+      return {
+        reply: `¡Entendido! Me alegra mucho. Respecto a lo que me comentas, ¿te gustaría que te traiga una degustación variada de tapas o prefieres que te recomiende un plato fuerte como el secreto ibérico a la brasa?`,
+        translation: `Understood! I'm glad to hear it. Regarding what you mention, would you like me to bring a varied tasting of tapas, or do you prefer that I recommend a main dish like grilled Iberian pork?`,
+        culturalTip: '"Tapear" is a social verb in Spanish meaning going from bar to bar trying small savory dishes.',
+        gentleCorrection,
+        vocabHints: [
+          { word: 'la degustación', meaning: 'tasting / sampler platter', partOfSpeech: 'noun' },
+          { word: 'a la brasa', meaning: 'grilled over charcoal', partOfSpeech: 'phrase' },
+          { word: 'recomendar', meaning: 'to recommend', partOfSpeech: 'verb' }
+        ],
+        suggestedReplies: [
+          'Me encantaría probar la degustación variada.',
+          '¿Qué ingredientes tiene el secreto ibérico?',
+          '¿Nos trae la cuenta, por favor?'
+        ]
+      };
+    }
+
+    // B. Airport / Customs Scenario (Elena)
+    if (scenarioTitle.toLowerCase().includes('airport') || scenarioTitle.toLowerCase().includes('baggage') || scenarioTitle.toLowerCase().includes('customs')) {
+      if (lower.includes('turismo') || lower.includes('vacaciones') || lower.includes('trabajo') || lower.includes('negocio') || lower.includes('semana') || lower.includes('días')) {
+        return {
+          reply: 'Muy bien, motivo y estancia registrados correctamente. ¿Trae consigo algún artículo sujeto a declaración aduanera o viaja únicamente con equipaje de mano personal?',
+          translation: 'Very well, purpose and stay registered properly. Are you bringing any goods subject to customs declaration, or are you traveling with personal carry-on luggage only?',
+          culturalTip: 'At customs checkpoints, answering directly and presenting travel insurance or hotel bookings is customary.',
+          gentleCorrection,
+          vocabHints: [
+            { word: 'declaración aduanera', meaning: 'customs declaration', partOfSpeech: 'noun' },
+            { word: 'equipaje de mano', meaning: 'carry-on luggage', partOfSpeech: 'noun' },
+            { word: 'la estancia', meaning: 'the stay / duration', partOfSpeech: 'noun' }
+          ],
+          suggestedReplies: [
+            'Solo llevo mi equipaje de mano personal.',
+            'He perdido una maleta facturada, ¿dónde puedo reclamar?',
+            'No tengo nada que declarar.'
+          ]
+        };
+      }
+
+      if (lower.includes('maleta') || lower.includes('perdid') || lower.includes('factura') || lower.includes('equipaje')) {
+        return {
+          reply: 'Lamento mucho la molestia con su equipaje. Por favor, acérquese al mostrador número 4 con el comprobante del billete para emitir el parte de irregularidad PIR.',
+          translation: 'I am very sorry for the trouble with your luggage. Please head to counter number 4 with your ticket stub to issue the PIR baggage irregularity report.',
+          culturalTip: 'The PIR (Property Irregularity Report) is the international standardized document for locating delayed bags.',
+          gentleCorrection,
+          vocabHints: [
+            { word: 'el mostrador', meaning: 'the counter', partOfSpeech: 'noun' },
+            { word: 'el comprobante', meaning: 'the receipt / baggage claim tag', partOfSpeech: 'noun' },
+            { word: 'emitir', meaning: 'to issue / generate', partOfSpeech: 'verb' }
+          ],
+          suggestedReplies: [
+            'Aquí tengo el comprobante de mi maleta.',
+            '¿Cuánto tardarán en enviarla al hotel?',
+            'Muchas gracias por su ayuda.'
+          ]
+        };
+      }
+    }
+
+    // C. Hotel Check-In Scenario (Carlos)
+    if (scenarioTitle.toLowerCase().includes('hotel') || scenarioTitle.toLowerCase().includes('reserva') || scenarioTitle.toLowerCase().includes('check-in')) {
+      return {
+        reply: `¡Excelente! He localizado su reserva en el sistema informático. Su habitación es la número 305 en la tercera planta, con balcón soleado. La tarjeta magnética sirve también para acceder a la terraza. ¿Desea que le facilite la contraseña del WiFi ahora mismo?`,
+        translation: `Excellent! I have located your reservation in the computer system. Your room is number 305 on the third floor, with a sunny balcony. The keycard also gives access to the terrace. Would you like the WiFi password right now?`,
+        culturalTip: 'Spanish hotels require all adult guests to present a passport or national ID card upon check-in.',
+        gentleCorrection,
+        vocabHints: [
+          { word: 'la tarjeta magnética', meaning: 'the keycard', partOfSpeech: 'noun' },
+          { word: 'el balcón soleado', meaning: 'sunny balcony', partOfSpeech: 'noun' },
+          { word: 'localizar', meaning: 'to locate / find', partOfSpeech: 'verb' }
+        ],
+        suggestedReplies: [
+          'Sí, por favor, ¿cuál es la clave del WiFi?',
+          '¿A qué hora se sirve el desayuno?',
+          '¿Pueden guardar mis maletas después del check-out?'
+        ]
+      };
+    }
+
+    // D. Business / Career Scenario (Sofia / Diego)
+    if (scenarioTitle.toLowerCase().includes('work') || scenarioTitle.toLowerCase().includes('meeting') || scenarioTitle.toLowerCase().includes('pitch')) {
+      return {
+        reply: `¡Excelente síntesis! Me parece una propuesta muy coherente con los objetivos del trimestre. En cuanto al calendario de entregas, ¿consideras viable tener el primer prototipo listo para el próximo sprint o necesitaremos apoyo del equipo técnico?`,
+        translation: `Excellent summary! It seems very aligned with this quarter's objectives. Regarding the delivery schedule, do you consider it feasible to have the first prototype ready for the next sprint, or will we need technical team support?`,
+        culturalTip: 'In Spanish business culture, personal rapport and cordial conversation precede jumping directly into the contract agenda.',
+        gentleCorrection,
+        vocabHints: [
+          { word: 'coherente', meaning: 'aligned / coherent', partOfSpeech: 'adjective' },
+          { word: 'el calendario de entregas', meaning: 'the delivery schedule / timeline', partOfSpeech: 'noun' },
+          { word: 'viable', meaning: 'feasible / viable', partOfSpeech: 'adjective' }
+        ],
+        suggestedReplies: [
+          'Considero que es totalmente viable para el próximo sprint.',
+          'Necesitaremos coordinar con el equipo de diseño primero.',
+          '¿Podríamos revisar el presupuesto asignado?'
+        ]
+      };
+    }
+
+    // General Spanish response personalized to turn
     return {
-      reply: '¡Excelente! Me parece genial. Para empezar, ¿prefieres probar las tapas tradicionales o te gustaría ver la carta de vinos primero?',
-      translation: 'Excellent! Sounds great to me. To start, do you prefer trying the traditional tapas or would you like to see the wine list first?',
-      culturalTip: 'In Spain, tapas are often shared among everyone at the table rather than individual dishes.',
-      gentleCorrection: lastUserMsg.toLowerCase().includes('yo querer') ? {
-        hasMistake: true,
-        originalPhrase: 'yo querer',
-        improvedPhrase: 'Quisiera / Me gustaría',
-        explanation: 'Saying "Quisiera" or "Me gustaría" sounds much more courteous and natural than "yo querer".'
-      } : { hasMistake: false, originalPhrase: '', improvedPhrase: '', explanation: '' },
+      reply: `¡Comprendo perfectamente lo que dices! Para profundizar en este tema de ${scenarioTitle}, cuéntame un poco más: ¿cuál sería el siguiente paso que tienes en mente?`,
+      translation: `I understand what you say perfectly! To delve deeper into this topic, tell me a bit more: what would be the next step you have in mind?`,
+      culturalTip: 'Active conversational listening and prompt turn-taking show warmth in Spanish communication.',
+      gentleCorrection,
       vocabHints: [
-        { word: 'las tapas', meaning: 'small savory dishes/appetizers', partOfSpeech: 'noun' },
-        { word: 'la carta', meaning: 'the menu', partOfSpeech: 'noun' },
-        { word: 'probar', meaning: 'to try / to taste', partOfSpeech: 'verb' }
+        { word: 'profundizar', meaning: 'to delve deeper / explore in detail', partOfSpeech: 'verb' },
+        { word: 'el siguiente paso', meaning: 'the next step', partOfSpeech: 'phrase' }
       ],
       suggestedReplies: [
-        'Me encantaría probar las tapas tradicionales.',
-        '¿Cuál es la especialidad de la casa?',
-        '¿Tienen opciones vegetarianas?'
+        'Me gustaría enfocarme en los detalles prácticos.',
+        '¿Cómo suelen resolver esto los locales?',
+        'Tengo otra pregunta sobre este punto.'
       ]
     };
   }
 
+  // 3. French Dynamic Contextual Engine
   if (lang.toLowerCase().includes('french')) {
+    if (lower.includes('addition') || lower.includes('payer') || lower.includes('carte') || lower.includes('combien')) {
+      return {
+        reply: `Voici l'addition : cela fait 26 euros au total pour votre repas. Vous préférez régler par carte bancaire ou en espèces ? J'espère que vous avez passé un agréable moment parmi nous.`,
+        translation: `Here is the bill: that comes to 26 euros in total for your meal. Do you prefer to pay by card or in cash? I hope you enjoyed your time with us.`,
+        culturalTip: 'In France, asking "L\'addition, s\'il vous plaît" is the universal courteous formula.',
+        gentleCorrection,
+        vocabHints: [
+          { word: 'l\'addition', meaning: 'the restaurant bill', partOfSpeech: 'noun' },
+          { word: 'régler', meaning: 'to settle / pay', partOfSpeech: 'verb' },
+          { word: 'en espèces', meaning: 'in cash', partOfSpeech: 'phrase' }
+        ],
+        suggestedReplies: [
+          'Par carte bancaire, s’il vous plaît.',
+          'En espèces, voici 30 euros.',
+          'Merci beaucoup, le repas était délicieux !'
+        ]
+      };
+    }
+
+    if (lower.includes('vin') || lower.includes('café') || lower.includes('eau') || lower.includes('boire')) {
+      return {
+        reply: `Très bon choix ! Je vous apporte cela de suite. Aujourd'hui, notre chef propose un plat du jour savoureux : un filet de saumon grillé et des légumes de saison. Cela vous tente ?`,
+        translation: `Very good choice! I'll bring that right over. Today our chef offers a tasty daily special: grilled salmon fillet with seasonal vegetables. Does that tempt you?`,
+        culturalTip: 'In French dining, asking for "une carafe d\'eau" gets you complimentary tap water.',
+        gentleCorrection,
+        vocabHints: [
+          { word: 'plat du jour', meaning: 'daily special', partOfSpeech: 'noun' },
+          { word: 'savoureux', meaning: 'tasty / delicious', partOfSpeech: 'adjective' },
+          { word: 'tenter', meaning: 'to tempt / appeal to', partOfSpeech: 'verb' }
+        ],
+        suggestedReplies: [
+          'Oui, je prends le plat du jour !',
+          'Avez-vous une option végétarienne ?',
+          'Est-ce que le service est compris ?'
+        ]
+      };
+    }
+
     return {
-      reply: 'Bienvenue ! C’est un plaisir de vous accueillir. Souhaitez-vous une table en terrasse ou plutôt à l’intérieur ?',
-      translation: 'Welcome! It is a pleasure to welcome you. Would you like a table on the terrace or rather inside?',
-      culturalTip: 'Always greet with a warm "Bonjour" before asking for a table or service in France.',
-      gentleCorrection: { hasMistake: false, originalPhrase: '', improvedPhrase: '', explanation: '' },
+      reply: `Enchanté ! C'est noté avec grand plaisir. Pour continuer agréablement notre échange, dites-moi : avez-vous des préférences particulières pour la suite ?`,
+      translation: `Delighted! Noted with great pleasure. To continue our conversation pleasantly, tell me: do you have any particular preferences for what's next?`,
+      culturalTip: 'Politeness formulas like "s\'il vous plaît" and "merci beaucoup" are essential in every French interaction.',
+      gentleCorrection,
       vocabHints: [
-        { word: 'accueillir', meaning: 'to welcome', partOfSpeech: 'verb' },
-        { word: 'la terrasse', meaning: 'the patio / terrace', partOfSpeech: 'noun' },
-        { word: 'souhaiter', meaning: 'to wish / desire', partOfSpeech: 'verb' }
+        { word: 'noté', meaning: 'noted / taken down', partOfSpeech: 'adjective' },
+        { word: 'particulier', meaning: 'particular / specific', partOfSpeech: 'adjective' }
       ],
       suggestedReplies: [
-        'Une table en terrasse, s’il vous plaît.',
-        'Avez-vous une table pour deux personnes ?',
-        'Est-ce que je peux voir le menu ?'
+        'Je voudrais avoir votre recommandation.',
+        'Comment cela fonctionne-t-il exactement ?',
+        'L’addition, s’il vous plaît.'
       ]
     };
   }
 
+  // 4. General / English Multi-Turn
   return {
-    reply: `Great to meet you! Let's continue exploring this scenario together. What would you like to focus on next?`,
-    translation: 'English translation of the dialogue.',
-    culturalTip: 'Direct communication paired with polite inquiries creates a comfortable conversational flow.',
-    gentleCorrection: { hasMistake: false, originalPhrase: '', improvedPhrase: '', explanation: '' },
+    reply: `I understand completely, that's a very natural response! Based on what you just shared about "${lastUserMsg.slice(0, 30)}...", how would you like to proceed with our conversation next?`,
+    translation: 'English dialogue progression.',
+    culturalTip: 'Prompt responses with natural pauses mirror real-world native conversation pacing.',
+    gentleCorrection,
     vocabHints: [
-      { word: 'scenario', meaning: 'situation', partOfSpeech: 'noun' },
-      { word: 'explore', meaning: 'discover together', partOfSpeech: 'verb' }
+      { word: 'proceed', meaning: 'continue forward', partOfSpeech: 'verb' },
+      { word: 'perspective', meaning: 'point of view', partOfSpeech: 'noun' }
     ],
     suggestedReplies: [
-      'Tell me more about your recommendations.',
-      'How do locals typically handle this situation?',
-      'Let us practice another common question.'
+      'Tell me what the locals usually recommend here.',
+      'How would I ask this in a more formal setting?',
+      'Let us move on to the next topic.'
     ]
   };
 }
