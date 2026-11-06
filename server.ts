@@ -44,7 +44,16 @@ app.post('/api/chat/respond', async (req, res) => {
     }
 
     const systemPrompt = `You are playing an authentic character in an immersive language conversation for Duolingo.
-Language: ${targetLanguage}.
+TARGET LANGUAGE: ${targetLanguage}.
+CRITICAL LANGUAGE INSTRUCTION: You MUST formulate your conversational reply in "reply" EXCLUSIVELY in ${targetLanguage}.
+NEVER speak in Spanish unless ${targetLanguage} is Spanish!
+If target language is French, speak French.
+If target language is German, speak German.
+If target language is Italian, speak Italian.
+If target language is Japanese, speak Japanese.
+If target language is Portuguese, speak Portuguese.
+If target language is Mandarin, speak Mandarin.
+
 User Target Level: ${userLevel} (A1=Beginner, A2=Elementary, B1=Intermediate, B2=Upper-Intermediate, C1=Advanced).
 Learning Objective: ${goal}.
 Roleplay Scenario: ${scenario}.
@@ -53,11 +62,11 @@ Character Persona: ${persona?.name || 'Local Guide'} (${persona?.role || 'Native
 Guidelines:
 1. Stay in character! Respond naturally in ${targetLanguage}.
 2. Adapt vocabulary and sentence complexity strictly to ${userLevel}. For A1/A2, use short, clear sentences. For B1/B2, incorporate idiomatic expressions.
-3. Keep the conversation moving forward by asking an engaging follow-up question.
+3. Keep the conversation moving forward by asking an engaging follow-up question in ${targetLanguage}.
 4. If the user made a grammar, vocabulary, or gender error in their latest message, formulate a very gentle, encouraging "gentleCorrection" note without breaking your in-game character.
-5. Provide a faithful English translation of your reply.
-6. Provide 2-3 key vocabulary words from your reply with parts of speech and translations.
-7. Provide 2-3 suggested starter phrases the learner could reply with next.
+5. Provide a faithful English translation of your reply in "translation".
+6. Provide 2-3 key vocabulary words from your reply in "vocabHints" with parts of speech and English translations.
+7. Provide 2-3 suggested starter phrases in ${targetLanguage} the learner could reply with next in "suggestedReplies".
 
 Output MUST be strictly valid JSON matching the requested structure.`;
 
@@ -669,7 +678,7 @@ function getFallbackResponse(
       };
     }
 
-    if (lower.includes('vin') || lower.includes('café') || lower.includes('eau') || lower.includes('boire')) {
+    if (lower.includes('vin') || lower.includes('café') || lower.includes('eau') || lower.includes('boire') || lower.includes('bière')) {
       return {
         reply: `Très bon choix ! Je vous apporte cela de suite. Aujourd'hui, notre chef propose un plat du jour savoureux : un filet de saumon grillé et des légumes de saison. Cela vous tente ?`,
         translation: `Very good choice! I'll bring that right over. Today our chef offers a tasty daily special: grilled salmon fillet with seasonal vegetables. Does that tempt you?`,
@@ -688,24 +697,366 @@ function getFallbackResponse(
       };
     }
 
+    if (lower.includes('table') || lower.includes('deux') || lower.includes('terrasse') || lower.includes('bonjour') || lower.includes('bonsoir')) {
+      return {
+        reply: `Parfaitement ! J'ai une très belle table pour deux près de la fenêtre ou bien en terrasse si vous préférez profiter de la vue. Pour commencer, désirez-vous un apéritif ou un verre de vin ?`,
+        translation: `Perfect! I have a lovely table for two by the window or on the terrace if you prefer the view. To begin, would you like an aperitif or a glass of wine?`,
+        culturalTip: 'Saying "Bonjour" or "Bonsoir" upon entering is mandatory in French social etiquette.',
+        gentleCorrection,
+        vocabHints: [
+          { word: 'en terrasse', meaning: 'on the terrace / patio', partOfSpeech: 'phrase' },
+          { word: 'l’apéritif', meaning: 'pre-dinner drink', partOfSpeech: 'noun' },
+          { word: 'profiter', meaning: 'to enjoy / make the most of', partOfSpeech: 'verb' }
+        ],
+        suggestedReplies: [
+          'Une table en terrasse, s’il vous plaît.',
+          'Un verre de vin blanc pour commencer, merci.',
+          'Pourrions-nous voir la carte des plats ?'
+        ]
+      };
+    }
+
     return {
-      reply: `Enchanté ! C'est noté avec grand plaisir. Pour continuer agréablement notre échange, dites-moi : avez-vous des préférences particulières pour la suite ?`,
-      translation: `Delighted! Noted with great pleasure. To continue our conversation pleasantly, tell me: do you have any particular preferences for what's next?`,
+      reply: `Enchanté ! C'est bien noté. Pour continuer agréablement notre échange, dites-moi : avez-vous une préférence particulière pour la suite ou souhaitez-vous une suggestion ?`,
+      translation: `Delighted! Noted down. To continue our conversation pleasantly, tell me: do you have a particular preference for what's next or would you like a recommendation?`,
       culturalTip: 'Politeness formulas like "s\'il vous plaît" and "merci beaucoup" are essential in every French interaction.',
       gentleCorrection,
       vocabHints: [
         { word: 'noté', meaning: 'noted / taken down', partOfSpeech: 'adjective' },
-        { word: 'particulier', meaning: 'particular / specific', partOfSpeech: 'adjective' }
+        { word: 'la suggestion', meaning: 'suggestion / recommendation', partOfSpeech: 'noun' }
       ],
       suggestedReplies: [
-        'Je voudrais avoir votre recommandation.',
-        'Comment cela fonctionne-t-il exactement ?',
+        'Je voudrais avoir votre recommandation personnelle.',
+        'Quels sont les desserts maison disponibles ?',
         'L’addition, s’il vous plaît.'
       ]
     };
   }
 
-  // 4. General / English Multi-Turn
+  // 4. German Dynamic Contextual Engine
+  if (lang.toLowerCase().includes('german')) {
+    if (lower.includes('rechnung') || lower.includes('zahlen') || lower.includes('karte') || lower.includes('bezahlen') || lower.includes('bar')) {
+      return {
+        reply: `Sehr gerne! Hier ist Ihre Rechnung: Das macht zusammen 24,50 Euro für die Speisen und Getränke. Möchten Sie mit Karte zahlen oder lieber bar?`,
+        translation: `Very gladly! Here is your bill: That comes to 24.50 euros in total for the food and drinks. Would you like to pay by card or in cash?`,
+        culturalTip: 'In Germany, rounding up to the next euro or adding 5-10% ("Stimmt so") is the polite customary way to tip.',
+        gentleCorrection,
+        vocabHints: [
+          { word: 'die Rechnung', meaning: 'the bill / check', partOfSpeech: 'noun' },
+          { word: 'zahlen', meaning: 'to pay', partOfSpeech: 'verb' },
+          { word: 'bar', meaning: 'in cash', partOfSpeech: 'adverb' }
+        ],
+        suggestedReplies: [
+          'Mit Karte bitte.',
+          'Bar bitte, 27 Euro, stimmt so!',
+          'Können wir getrennt zahlen?'
+        ]
+      };
+    }
+
+    if (lower.includes('bier') || lower.includes('wasser') || lower.includes('trinken') || lower.includes('wein') || lower.includes('kaffee')) {
+      return {
+        reply: `Kommt sofort! Ein frisch gezapftes Bier und ein kühles Wasser. Unser Küchenchef empfiehlt heute das knusprige Schnitzel mit Bratkartoffeln. Haben Sie schon einen Blick in die Speisekarte geworfen?`,
+        translation: `Coming right up! A freshly poured beer and chilled water. Our chef recommends the crispy schnitzel with pan-fried potatoes today. Have you already taken a look at the menu?`,
+        culturalTip: 'In German beer culture, eye contact when clinking glasses ("Prost!") is essential etiquette.',
+        gentleCorrection,
+        vocabHints: [
+          { word: 'frisch gezapft', meaning: 'freshly drafted / on tap', partOfSpeech: 'adjective' },
+          { word: 'die Speisekarte', meaning: 'the food menu', partOfSpeech: 'noun' },
+          { word: 'der Küchenchef', meaning: 'the head chef', partOfSpeech: 'noun' }
+        ],
+        suggestedReplies: [
+          'Das Schnitzel klingt hervorragend, das nehme ich!',
+          'Haben Sie auch vegetarische Gerichte?',
+          'Wir brauchen noch ein paar Minuten zum Aussuchen.'
+        ]
+      };
+    }
+
+    if (lower.includes('tisch') || lower.includes('zwei') || lower.includes('platz') || lower.includes('guten tag') || lower.includes('hallo') || lower.includes('abend')) {
+      return {
+        reply: `Guten Abend! Natürlich, ich habe einen sehr schönen Tisch für zwei Personen direkt am Fenster frei. Nehmen Sie gerne Platz! Darf ich Ihnen schon etwas zu trinken bringen?`,
+        translation: `Good evening! Of course, I have a very nice table for two available right by the window. Please take a seat! May I bring you something to drink already?`,
+        culturalTip: 'In Germany, it is polite to wait briefly at the entrance or make eye contact before seating yourself in full-service restaurants.',
+        gentleCorrection,
+        vocabHints: [
+          { word: 'nehmen Sie Platz', meaning: 'please take a seat', partOfSpeech: 'phrase' },
+          { word: 'das Fenster', meaning: 'the window', partOfSpeech: 'noun' },
+          { word: 'zu trinken', meaning: 'to drink', partOfSpeech: 'phrase' }
+        ],
+        suggestedReplies: [
+          'Guten Abend! Zwei Helle Biere bitte.',
+          'Haben Sie auch stilles Wasser?',
+          'Was können Sie heute besonders empfehlen?'
+        ]
+      };
+    }
+
+    return {
+      reply: `Verstehe ich vollkommen! Sehr gerne. Erzählen Sie mir: Welcher Punkt ist Ihnen hierbei besonders wichtig für den nächsten Schritt?`,
+      translation: `I completely understand! Gladly. Tell me: which aspect is particularly important to you for the next step?`,
+      culturalTip: 'German communication is clear, punctual, and structured.',
+      gentleCorrection,
+      vocabHints: [
+        { word: 'vollkommen', meaning: 'completely / entirely', partOfSpeech: 'adverb' },
+        { word: 'besonders', meaning: 'especially / particularly', partOfSpeech: 'adverb' }
+      ],
+      suggestedReplies: [
+        'Ich möchte mich auf die praktischen Details konzentrieren.',
+        'Könnten Sie mir das genauer erklären?',
+        'Die Rechnung bitte.'
+      ]
+    };
+  }
+
+  // 5. Italian Dynamic Contextual Engine
+  if (lang.toLowerCase().includes('italian')) {
+    if (lower.includes('conto') || lower.includes('pagare') || lower.includes('carta') || lower.includes('contanti')) {
+      return {
+        reply: `Subito! Ecco a voi il conto: sono 28 euro in totale per le portate e le bevande. Preferite pagare con carta di credito o in contanti? Spero abbiate gradito la cena!`,
+        translation: `Right away! Here is the check: it comes to 28 euros in total for the dishes and drinks. Do you prefer paying by credit card or cash? I hope you enjoyed dinner!`,
+        culturalTip: 'In Italy, the "coperto" (bread & cover charge) is standard and itemized on the bill.',
+        gentleCorrection,
+        vocabHints: [
+          { word: 'il conto', meaning: 'the bill / check', partOfSpeech: 'noun' },
+          { word: 'i contanti', meaning: 'cash', partOfSpeech: 'noun' },
+          { word: 'gradire', meaning: 'to enjoy / appreciate', partOfSpeech: 'verb' }
+        ],
+        suggestedReplies: [
+          'Con carta di credito, per favore.',
+          'In contanti, ecco 30 euro.',
+          'Grazie mille, era tutto squisito!'
+        ]
+      };
+    }
+
+    if (lower.includes('tavolo') || lower.includes('due') || lower.includes('ciao') || lower.includes('buonasera') || lower.includes('buongiorno')) {
+      return {
+        reply: `Buonasera! Ma certo, ho giusto un tavolo riservato per due all'aperto con vista sulla piazza. Accomodatevi pure! Per iniziare gradite un prosecco fresco o dell'acqua minerale?`,
+        translation: `Good evening! But of course, I have a lovely table for two outside overlooking the piazza. Please make yourselves comfortable! To start would you like chilled prosecco or mineral water?`,
+        culturalTip: 'In Italy, greeting with "Buonasera" from late afternoon onward is the warm standard.',
+        gentleCorrection,
+        vocabHints: [
+          { word: 'accomodatevi', meaning: 'make yourselves comfortable', partOfSpeech: 'verb' },
+          { word: 'all’aperto', meaning: 'outdoors / al fresco', partOfSpeech: 'phrase' },
+          { word: 'la piazza', meaning: 'the town square', partOfSpeech: 'noun' }
+        ],
+        suggestedReplies: [
+          'Buonasera! Due bicchieri di prosecco per iniziare.',
+          'Vorremmo vedere il menù dei primi piatti, grazie.',
+          'Qual è la pasta tipica della casa?'
+        ]
+      };
+    }
+
+    return {
+      reply: `Perfetto, ho capito benissimo! Per proseguire al meglio la nostra conversazione, dimmi pure: cosa ti piacerebbe approfondire adesso?`,
+      translation: `Perfect, I understood very well! To continue our conversation best, tell me: what would you like to explore further now?`,
+      culturalTip: 'Expressive hand gestures and warm vocal cadence are natural parts of Italian conversation.',
+      gentleCorrection,
+      vocabHints: [
+        { word: 'benissimo', meaning: 'very well', partOfSpeech: 'adverb' },
+        { word: 'approfondire', meaning: 'to explore in depth', partOfSpeech: 'verb' }
+      ],
+      suggestedReplies: [
+        'Vorrei chiedere consiglio sui piatti locali.',
+        'Come si dice questo in modo più formale?',
+        'Il conto, per favore.'
+      ]
+    };
+  }
+
+  // 6. Japanese Dynamic Contextual Engine
+  if (lang.toLowerCase().includes('japanese')) {
+    if (lower.includes('会計') || lower.includes('いくら') || lower.includes('カード') || lower.includes('現金') || lower.includes('お勘定')) {
+      return {
+        reply: `かしこまりました！お会計ですね。合計で3,800円になります。お支払いはクレジットカードですか、それとも現金ですか？`,
+        translation: `Certainly! The check right away. The total comes to 3,800 yen. Would you like to pay with credit card or cash?`,
+        culturalTip: 'In Japan, making an "X" sign with your index fingers is a common non-verbal gesture to ask for the bill.',
+        gentleCorrection,
+        vocabHints: [
+          { word: 'お会計', meaning: 'the check / bill', partOfSpeech: 'noun' },
+          { word: '合計', meaning: 'total amount', partOfSpeech: 'noun' },
+          { word: 'お支払い', meaning: 'payment', partOfSpeech: 'noun' }
+        ],
+        suggestedReplies: [
+          'カードでお願いします。',
+          '現金で支払います。',
+          'ごちそうさまでした、とても美味しかったです！'
+        ]
+      };
+    }
+
+    if (lower.includes('ビール') || lower.includes('水') || lower.includes('お茶') || lower.includes('飲み物') || lower.includes('酒')) {
+      return {
+        reply: `はい、喜んで！冷たい生ビールとお水をお持ちしますね。本日のおすすめは築地直送の新鮮な刺身盛り合わせです。いかがでしょうか？`,
+        translation: `Yes, gladly! I will bring chilled draft beer and water right away. Today's recommendation is our fresh sashimi platter. How does that sound?`,
+        culturalTip: 'In Japanese izakayas, "Otoushi" (a small appetizer) is served with first drinks as a seating fee.',
+        gentleCorrection,
+        vocabHints: [
+          { word: '生ビール', meaning: 'draft beer', partOfSpeech: 'noun' },
+          { word: 'おすすめ', meaning: 'recommendation', partOfSpeech: 'noun' },
+          { word: '刺身盛り合わせ', meaning: 'sashimi platter', partOfSpeech: 'noun' }
+        ],
+        suggestedReplies: [
+          '刺身盛り合わせをお願いします！',
+          '温かいお茶もいただけますか？',
+          'おすすめの焼き鳥は何ですか？'
+        ]
+      };
+    }
+
+    return {
+      reply: `かしこまりました！よくわかりました。それでは、次にどのようなことについてお話ししましょうか？`,
+      translation: `Certainly! I understood well. What would you like to talk about next?`,
+      culturalTip: 'Using "Aizuchi" (nodding and listening sounds like "hai" or "sou desu ne") shows polite engagement.',
+      gentleCorrection,
+      vocabHints: [
+        { word: 'かしこまりました', meaning: 'certainly / understood (polite)', partOfSpeech: 'phrase' },
+        { word: 'お話し', meaning: 'talk / conversation', partOfSpeech: 'noun' }
+      ],
+      suggestedReplies: [
+        '地元で人気のお店について教えてください。',
+        'おすすめの観光スポットはありますか？',
+        'お会計をお願いします。'
+      ]
+    };
+  }
+
+  // 7. Portuguese Dynamic Contextual Engine
+  if (lang.toLowerCase().includes('portuguese')) {
+    if (lower.includes('conta') || lower.includes('pagar') || lower.includes('cartão') || lower.includes('dinheiro')) {
+      return {
+        reply: `Com certeza! Aqui tem a conta: são 22 euros no total pelas refeições e bebidas. Prefere pagar com cartão de crédito ou em dinheiro? Espero que tenha apreciado a refeição!`,
+        translation: `Certainly! Here is the bill: that comes to 22 euros in total for meals and drinks. Do you prefer to pay with credit card or cash? I hope you enjoyed the meal!`,
+        culturalTip: 'In Portugal, the small appetizers placed on your table (bread, olives, cheese) are charged only if you consume them.',
+        gentleCorrection,
+        vocabHints: [
+          { word: 'a conta', meaning: 'the check / bill', partOfSpeech: 'noun' },
+          { word: 'o cartão', meaning: 'card', partOfSpeech: 'noun' },
+          { word: 'em dinheiro', meaning: 'in cash', partOfSpeech: 'phrase' }
+        ],
+        suggestedReplies: [
+          'Com cartão de crédito, por favor.',
+          'Em dinheiro, aqui tem 25 euros.',
+          'Muito obrigado, a comida estava deliciosa!'
+        ]
+      };
+    }
+
+    if (lower.includes('mesa') || lower.includes('dois') || lower.includes('boa noite') || lower.includes('olá')) {
+      return {
+        reply: `Boa noite! Sejam muito bem-vindos. Temos uma excelente mesa para duas pessoas junto à esplanada. Podem sentar-se à vontade! Para começar, gostariam de uma cerveja fresca ou um bom vinho verde?`,
+        translation: `Good evening! Most welcome. We have an excellent table for two by the terrace. Make yourselves at home! To start, would you like a chilled beer or a nice vinho verde?`,
+        culturalTip: 'Vinho Verde (young crisp wine) is an iconic Portuguese specialty to accompany seafood and appetizers.',
+        gentleCorrection,
+        vocabHints: [
+          { word: 'à vontade', meaning: 'at home / at ease', partOfSpeech: 'phrase' },
+          { word: 'esplanada', meaning: 'outdoor terrace', partOfSpeech: 'noun' },
+          { word: 'vinho verde', meaning: 'green / crisp young wine', partOfSpeech: 'noun' }
+        ],
+        suggestedReplies: [
+          'Uma garrafa de vinho verde bem fresca, por favor.',
+          'O que nos recomenda de prato principal?',
+          'Queremos pedir um petisco para acompanhar.'
+        ]
+      };
+    }
+
+    return {
+      reply: `Com certeza, compreendo perfeitamente! Para continuarmos com a nossa conversa agradável, diga-me: qual é o próximo ponto que gostaria de abordar?`,
+      translation: `Certainly, I understand completely! To continue our pleasant conversation, tell me: what is the next topic you would like to cover?`,
+      culturalTip: 'Polite formulas like "por favor" and "com licença" create instant friendliness in Portugal and Brazil.',
+      gentleCorrection,
+      vocabHints: [
+        { word: 'compreender', meaning: 'to understand', partOfSpeech: 'verb' },
+        { word: 'abordar', meaning: 'to approach / cover', partOfSpeech: 'verb' }
+      ],
+      suggestedReplies: [
+        'Gostaria de saber mais recomendações locais.',
+        'Como posso dizer isto de forma mais formal?',
+        'A conta, por favor.'
+      ]
+    };
+  }
+
+  // 8. Mandarin Dynamic Contextual Engine
+  if (lang.toLowerCase().includes('mandarin') || lang.toLowerCase().includes('chinese')) {
+    if (lower.includes('买单') || lower.includes('结账') || lower.includes('多少钱') || lower.includes('微信') || lower.includes('刷卡') || lower.includes('支付宝')) {
+      return {
+        reply: `好的，没问题！这是您的账单明细，一共是168元。请问您使用微信支付、支付宝还是刷卡？非常感谢您的光临！`,
+        translation: `Okay, no problem! Here is your itemized bill, total is 168 RMB. Would you like to use WeChat Pay, Alipay, or credit card? Thank you so much for coming!`,
+        culturalTip: 'Mobile payment via WeChat or Alipay is the predominant payment method across China.',
+        gentleCorrection,
+        vocabHints: [
+          { word: '账单', meaning: 'bill / check', partOfSpeech: 'noun' },
+          { word: '结账', meaning: 'to settle the bill', partOfSpeech: 'verb' },
+          { word: '刷卡', meaning: 'to swipe / pay by card', partOfSpeech: 'verb' }
+        ],
+        suggestedReplies: [
+          '我用微信支付，请扫我。',
+          '请问可以刷国际信用卡吗？',
+          '味道非常好，下次我们还会再来！'
+        ]
+      };
+    }
+
+    if (lower.includes('茶') || lower.includes('水') || lower.includes('饮料') || lower.includes('喝')) {
+      return {
+        reply: `马上为您送上一壶热普洱茶！我们今天的招牌清蒸鲈鱼和宫保鸡丁非常受欢迎，请问您想先尝尝哪一道？`,
+        translation: `Bringing over a pot of hot Pu'er tea right away! Today's signature steamed sea bass and Kung Pao chicken are very popular, which one would you like to try first?`,
+        culturalTip: 'Tapping two fingers on the table when someone pours tea is a traditional non-verbal gesture of gratitude.',
+        gentleCorrection,
+        vocabHints: [
+          { word: '招牌', meaning: 'signature dish', partOfSpeech: 'noun' },
+          { word: '清蒸', meaning: 'steamed', partOfSpeech: 'adjective' },
+          { word: '受欢迎', meaning: 'popular', partOfSpeech: 'adjective' }
+        ],
+        suggestedReplies: [
+          '我们要一份招牌清蒸鲈鱼！',
+          '请问这道菜放辣椒吗？我们想要清淡一点。',
+          '再来两碗米饭，谢谢。'
+        ]
+      };
+    }
+
+    if (lower.includes('两位') || lower.includes('两位') || lower.includes('你好') || lower.includes('有位置') || lower.includes('菜单')) {
+      return {
+        reply: `您好！欢迎光临！靠窗刚好有一张安静的双人桌，两位里面请坐。这是我们的菜单，请问需要先上一壶热茶吗？`,
+        translation: `Hello! Welcome! We have a quiet table for two right by the window, please take a seat inside. Here is our menu, would you like a pot of hot tea to start?`,
+        culturalTip: 'In Chinese hospitality, hot tea or warm water is served as a welcoming courtesy.',
+        gentleCorrection,
+        vocabHints: [
+          { word: '靠窗', meaning: 'by the window', partOfSpeech: 'phrase' },
+          { word: '请坐', meaning: 'please take a seat', partOfSpeech: 'phrase' },
+          { word: '热茶', meaning: 'hot tea', partOfSpeech: 'noun' }
+        ],
+        suggestedReplies: [
+          '好的，请给我们来一壶菊花茶。',
+          '请问今天有什么招牌特色菜？',
+          '请问洗手间在哪个方向？'
+        ]
+      };
+    }
+
+    return {
+      reply: `好的，完全明白了！为了让我们的对话更加丰富，请问您接下来对哪方面的内容最感兴趣？`,
+      translation: `Okay, completely understood! To enrich our conversation further, what aspect are you most interested in next?`,
+      culturalTip: 'Polite sentence-final particles like "呢" and "吧" soften the tone in spoken Mandarin.',
+      gentleCorrection,
+      vocabHints: [
+        { word: '明白', meaning: 'to understand', partOfSpeech: 'verb' },
+        { word: '丰富', meaning: 'rich / enrich', partOfSpeech: 'adjective' }
+      ],
+      suggestedReplies: [
+        '我想了解一下当地人的生活习惯。',
+        '这句话用更地道的中文怎么说？',
+        '服务员，买单结账。'
+      ]
+    };
+  }
+
+  // 9. General Fallback
   return {
     reply: `I understand completely, that's a very natural response! Based on what you just shared about "${lastUserMsg.slice(0, 30)}...", how would you like to proceed with our conversation next?`,
     translation: 'English dialogue progression.',
@@ -724,139 +1075,169 @@ function getFallbackResponse(
 }
 
 function getFallbackTutorAnswer(question: string, lang: string) {
+  const languageEx: Record<string, { polite: string; direct: string; rule: string; checkQ: string; checkOpt: string[]; correctIdx: number; checkExp: string }> = {
+    French: {
+      polite: 'Je voudrais un café, s’il vous plaît.',
+      direct: 'Je veux un café.',
+      rule: 'In French, always soften requests with "Je voudrais" (conditional) rather than demanding "Je veux" (present).',
+      checkQ: 'Which of the following is the most polite way to ask for water in a French restaurant?',
+      checkOpt: ['Donne-moi de l’eau tout de suite !', 'Je voudrais une carafe d’eau, s’il vous plaît.', 'Moi vouloir de l’eau.'],
+      correctIdx: 1,
+      checkExp: '"Je voudrais une carafe d’eau, s’il vous plaît" uses the courteous conditional form and formula of politeness.',
+    },
+    German: {
+      polite: 'Ich möchte bitte ein Glas Wasser.',
+      direct: 'Ich will Wasser.',
+      rule: 'In German, "Ich möchte" or "Ich hätte gerne" is polite, whereas "Ich will" sounds demanding like an order.',
+      checkQ: 'Which is the most polite formula to order in a German restaurant?',
+      checkOpt: ['Ich will die Rechnung jetzt!', 'Ich möchte bitte zahlen / Die Rechnung bitte.', 'Gib mir Rechnung!'],
+      correctIdx: 1,
+      checkExp: '"Ich möchte bitte zahlen" is polite, courteous, and standard across Germany, Austria, and Switzerland.',
+    },
+    Italian: {
+      polite: 'Vorrei un bicchiere d’acqua, per favore.',
+      direct: 'Voglio acqua.',
+      rule: 'In Italian, "Vorrei" (conditional of volere) expresses courteous requests, whereas "Voglio" sounds childish or aggressive.',
+      checkQ: 'Which of the following is the most natural way to ask for the bill in Rome?',
+      checkOpt: ['Voglio il conto adesso!', 'Ci porta il conto, per favore?', 'Porta conto!'],
+      correctIdx: 1,
+      checkExp: '"Ci porta il conto, per favore?" is the standard polite request used by native speakers.',
+    },
+    Japanese: {
+      polite: 'お水を一杯お願いします。',
+      direct: '水をくれ。',
+      rule: 'In Japanese, adding "お願いします" (onegaishimasu) or "いただけますか" softens any request into polite speech.',
+      checkQ: 'How do you politely ask for the check in an izakaya?',
+      checkOpt: ['金を出せ！', 'お会計をお願いします。', '今すぐ計算しろ。'],
+      correctIdx: 1,
+      checkExp: '"お会計をお願いします" is the standard respectful way to request the bill.',
+    },
+    Portuguese: {
+      polite: 'Gostaria de um copo de água, por favor.',
+      direct: 'Eu quero água.',
+      rule: 'In Portuguese, "Gostaria de..." or "Queria..." is much softer and more courteous than direct "Eu quero".',
+      checkQ: 'Which is the most courteous way to ask for the bill in Lisbon?',
+      checkOpt: ['Eu quero a conta já.', 'Pode trazer a conta, por favor?', 'Dá-me a conta.'],
+      correctIdx: 1,
+      checkExp: '"Pode trazer a conta, por favor?" is the natural and respectful formula.',
+    },
+    Mandarin: {
+      polite: '请给我一杯温水，谢谢。',
+      direct: '我要水。',
+      rule: 'In Mandarin, beginning with "请" (please) and concluding with "谢谢" (thank you) instantly marks polite conversation.',
+      checkQ: 'How do you politely ask for the bill in a Chinese restaurant?',
+      checkOpt: ['快点收钱！', '服务员，请帮我们结一下账，谢谢。', '我有钱拿走。'],
+      correctIdx: 1,
+      checkExp: '"服务员，请帮我们结一下账，谢谢" is the standard courteous expression.',
+    },
+  };
+
+  const ex = languageEx[lang] || {
+    polite: 'Quisiera un café, por favor.',
+    direct: 'Quiero un café.',
+    rule: 'Use the polite conditional form ("Quisiera" in Spanish, "Je voudrais" in French, "Ich möchte" in German) when ordering to sound courteous!',
+    checkQ: 'Which of the following is the most natural and polite way to order in a restaurant?',
+    checkOpt: ['¡Dame la comida ahora!', 'Quisiera ver el menú, por favor.', 'Yo quiero comer ya.'],
+    correctIdx: 1,
+    checkExp: 'Using courteous conditional verbs and "por favor" creates instant rapport.',
+  };
+
   return {
-    answer: `Great question! In ${lang}, nuances like this often depend on politeness register and verb mood. Using a conditional form (like "Quisiera" in Spanish or "Je voudrais" in French) softens your request and makes you sound cultured and polite, whereas present indicative can sound a bit demanding.`,
+    answer: `Great question! In ${lang}, polite registers and conditional verbs soften your tone. Using courteous forms like "${ex.polite}" signals warmth and respect, whereas present indicative ("${ex.direct}") can sound demanding in public establishments.`,
     breakdown: [
       {
-        concept: 'Polite Requests',
-        example: 'Quisiera un café, por favor.',
-        note: 'Sounds like: "I would like a coffee, please."'
+        concept: 'Polite / Courteous Formula',
+        example: ex.polite,
+        note: 'Polite conditional form favored by native speakers in dining and service encounters.',
       },
       {
         concept: 'Direct Statement',
-        example: 'Quiero un café.',
-        note: 'Sounds like: "I want a coffee." (Direct, used with friends or family).'
-      }
+        example: ex.direct,
+        note: 'Direct indicative statement, reserved for informal situations or family.',
+      },
     ],
-    ruleOfThumb: 'Whenever ordering at a restaurant or asking a stranger, use the polite conditional form to make an instant great impression!',
+    ruleOfThumb: ex.rule,
     quickCheck: {
-      question: 'Which of the following is the most natural and polite way to order water in a restaurant?',
-      options: [
-        '¡Dame agua ahora!',
-        'Quisiera un vaso de agua, por favor.',
-        'Yo quiero agua.'
-      ],
-      correctIndex: 1,
-      explanation: '"Quisiera un vaso de agua, por favor" uses the courteous subjunctive/conditional form, which native speakers appreciate.'
-    }
+      question: ex.checkQ,
+      options: ex.checkOpt,
+      correctIndex: ex.correctIdx,
+      explanation: ex.checkExp,
+    },
   };
 }
 
 function getFallbackReport(lang: string, goal: string, level: string, history: any[]) {
   return {
-    overallGrade: 'B1 Conversational Explorer',
-    summaryAssessment: `Solid effort during your ${goal} simulation! You successfully communicated your core ideas, asked relevant follow-up questions, and maintained conversational momentum throughout the interaction.`,
+    overallGrade: `B1 ${lang} Conversational Explorer`,
+    summaryAssessment: `Solid effort during your ${lang} ${goal} immersion session! You communicated your core requests, engaged with the local host, and maintained conversational momentum throughout.`,
     cefrBand: 'B1.1',
-    grammarScore: 78,
-    vocabScore: 84,
+    grammarScore: 80,
+    vocabScore: 85,
     fluencyScore: 82,
     culturalPragmaticsScore: 88,
     strengths: [
       {
-        title: 'Immediate Comprehension & Initiative',
-        description: 'You understood situational prompts quickly and kept the dialogue flowing without long hesitations.',
+        title: 'Immediate Situational Responsiveness',
+        description: `You understood the ${lang} prompts quickly and kept the dialogue flowing naturally.`,
         userQuote: history?.[1]?.content || 'Natural conversational response'
       },
       {
         title: 'Polite Courtesy Markers',
-        description: 'You consistently used courteous formulas like "por favor" and "gracias" which native speakers appreciate.',
-        userQuote: 'por favor'
+        description: `You utilized authentic politeness formulas in ${lang} which native speakers warmly appreciate.`,
+        userQuote: 'Natural polite phrase'
       },
       {
-        title: 'Contextual Vocabulary',
-        description: `Great application of words specific to ${goal}.`
+        title: 'Contextual Range',
+        description: `Great application of vocabulary specifically suited for ${goal} in ${lang}.`
       }
     ],
     areasToImprove: [
       {
-        skill: 'Subjunctive vs Indicative in Polite Requests',
-        whatUserSaid: 'Yo quiero la cuenta',
-        recommendedCorrection: '¿Me trae la cuenta, por favor? / Quisiera la cuenta',
-        explanation: 'In public establishments, softening the request with "quisiera" or a polite question feels much more natural than direct indicative "yo quiero".',
+        skill: `Polite Modals & Softened Requests in ${lang}`,
+        whatUserSaid: 'Direct want statement',
+        recommendedCorrection: `Polite conditional request in ${lang}`,
+        explanation: `In service encounters, softening requests with polite conditional forms feels much more natural than direct statements.`,
         severity: 'medium'
       },
       {
-        skill: 'Gender Agreement with Nouns',
-        whatUserSaid: 'el agua frío',
-        recommendedCorrection: 'el agua fría',
-        explanation: 'Even though "agua" takes "el" in the singular to prevent vowel clash, it remains grammatically feminine, so adjectives take feminine endings (fría).',
+        skill: `Idiomatic Phrasing for ${goal}`,
+        whatUserSaid: 'Word-for-word translation',
+        recommendedCorrection: `Native colloquial expression in ${lang}`,
+        explanation: `Using local idioms builds immediate authenticity and rapport with native speakers.`,
         severity: 'high'
-      },
-      {
-        skill: 'Preposition Nuances (Por vs Para)',
-        whatUserSaid: 'Gracias para ayudar',
-        recommendedCorrection: 'Gracias por ayudar',
-        explanation: 'Use "por" when expressing gratitude or cause/reason.',
-        severity: 'medium'
       }
     ],
     personalizedModules: [
       {
         id: 'mod-1',
-        title: `Unit 1: Polite Requests & Table Etiquette (${goal})`,
-        description: 'Master polite modals, bill requests, and dietary vocabulary with native audio.',
+        title: `Unit 1: ${lang} Table Etiquette & Polite Modals`,
+        description: `Master polite requests, bill inquiries, and dietary vocabulary in ${lang}.`,
         objectiveAlignment: 'Directly addresses your request phrasing from the chat.',
         xp: 45,
         icon: 'utensils'
       },
       {
         id: 'mod-2',
-        title: 'Unit 2: Gender Agreement & Tricky Feminine Nouns',
-        description: 'Practice high-frequency words with feminine articles and adjective harmony.',
-        objectiveAlignment: 'Fixes gender clashes observed during the beverage order.',
+        title: `Unit 2: ${lang} Rapid Real-World Response Drills`,
+        description: `Fast-paced conversational audio drills to speed up response time in ${lang}.`,
+        objectiveAlignment: `Builds automaticity and fluency for your ${goal} journey.`,
         xp: 50,
         icon: 'sparkles'
-      },
-      {
-        id: 'mod-3',
-        title: 'Unit 3: Rapid Real-World Response Drills',
-        description: 'Fast-paced conversational audio drills to speed up response time.',
-        objectiveAlignment: 'Builds fluency and automaticity for your upcoming travels.',
-        xp: 60,
-        icon: 'plane'
       }
     ],
     immediatePracticeDrills: [
       {
         id: 'drill-1',
         type: 'multiple_choice',
-        prompt: 'Select the most natural and polite way to ask for the bill:',
-        targetSentence: '¿Nos trae la cuenta, por favor?',
+        prompt: `Select the most courteous and natural way to ask for the bill in ${lang}:`,
+        targetSentence: 'Polite check request',
         options: [
-          'Yo quiero la cuenta ya.',
-          '¿Nos trae la cuenta, por favor?',
-          'Dame cuenta ahora.'
+          'Direct demand',
+          'Polite courteous formula with please and thank you',
+          'Informal slang'
         ],
-        correctOption: '¿Nos trae la cuenta, por favor?',
-        explanation: '"¿Nos trae la cuenta, por favor?" is polite, friendly, and standard in dining establishments.'
-      },
-      {
-        id: 'drill-2',
-        type: 'fill_in_blank',
-        prompt: 'Fill in the correct adjective form: "El agua está muy _____ (frío / fría)"',
-        targetSentence: 'El agua está muy fría',
-        options: ['frío', 'fría', 'fríos'],
-        correctOption: 'fría',
-        explanation: 'Agua is a feminine noun, so the adjective must agree: fría.'
-      },
-      {
-        id: 'drill-3',
-        type: 'multiple_choice',
-        prompt: 'Choose the correct preposition: "Muchas gracias _____ tu ayuda."',
-        targetSentence: 'Muchas gracias por tu ayuda.',
-        options: ['para', 'por', 'con', 'de'],
-        correctOption: 'por',
-        explanation: 'Expressing gratitude always uses "por" (cause/reason).'
+        correctOption: 'Polite courteous formula with please and thank you',
+        explanation: 'Polite formulas demonstrate respect and cultural awareness.'
       }
     ]
   };

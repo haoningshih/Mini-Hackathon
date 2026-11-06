@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { TargetLanguage, LearningGoal, ProficiencyLevel, UserObjectiveState } from '../types/duo';
-import { SUPPORTED_LANGUAGES, GOAL_OPTIONS } from '../data/curriculumData';
+import { SUPPORTED_LANGUAGES, GOAL_OPTIONS, getScenariosForLanguageAndGoal } from '../data/curriculumData';
 import { DuoMascot } from './DuoMascot';
 import {
   Plane,
@@ -43,15 +43,15 @@ export const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
   if (!isOpen) return null;
 
   const currentGoalData = GOAL_OPTIONS.find((g) => g.id === selectedGoal) || GOAL_OPTIONS[0];
+  const availableScenarios = getScenariosForLanguageAndGoal(targetLang, selectedGoal);
 
   const handleNext = () => {
     if (soundEnabled) audioService.playSuccess();
     if (step < 4) {
-      // Auto-select first scenario for chosen goal if needed
-      if (step === 2) {
-        const goalData = GOAL_OPTIONS.find((g) => g.id === selectedGoal);
-        if (goalData && goalData.scenarios.length > 0) {
-          setSelectedScenarioId(goalData.scenarios[0].id);
+      if (step === 1 || step === 2) {
+        const scenarios = getScenariosForLanguageAndGoal(targetLang, selectedGoal);
+        if (scenarios.length > 0) {
+          setSelectedScenarioId(scenarios[0].id);
         }
       }
       setStep(step + 1);
@@ -60,12 +60,18 @@ export const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
       setIsBuildingPath(true);
       setTimeout(() => {
         setIsBuildingPath(false);
+        const scenarios = getScenariosForLanguageAndGoal(targetLang, selectedGoal);
+        const resolvedScenarioId =
+          scenarios.some((s) => s.id === selectedScenarioId)
+            ? selectedScenarioId
+            : scenarios[0]?.id || 'travel-tapas';
+
         const newState: UserObjectiveState = {
           targetLanguage: targetLang,
           nativeLanguage: 'English',
           goal: selectedGoal,
           level: selectedLevel,
-          selectedScenarioId: selectedScenarioId || currentGoalData.scenarios[0]?.id || 'travel-tapas',
+          selectedScenarioId: resolvedScenarioId,
           targetDurationMinutes: sessionMinutes,
           hasCompletedQuestionnaire: true,
         };
@@ -351,7 +357,7 @@ export const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
                       Real-Life Scenario to Practice
                     </label>
                     <div className="space-y-2.5">
-                      {currentGoalData.scenarios.map((sc) => {
+                      {availableScenarios.map((sc) => {
                         const isSelected = selectedScenarioId === sc.id;
                         return (
                           <button

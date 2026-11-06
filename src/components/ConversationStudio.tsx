@@ -4,7 +4,7 @@ import {
   UserObjectiveState,
   TargetLanguage,
 } from '../types/duo';
-import { GOAL_OPTIONS, SUPPORTED_LANGUAGES } from '../data/curriculumData';
+import { GOAL_OPTIONS, SUPPORTED_LANGUAGES, getScenarioById, getInitialMessageForScenario } from '../data/curriculumData';
 import { DuoMascot } from './DuoMascot';
 import {
   Send,
@@ -51,12 +51,11 @@ export const ConversationStudio: React.FC<ConversationStudioProps> = ({
   isGeneratingReport,
   soundEnabled,
 }) => {
-  const currentGoalData =
-    GOAL_OPTIONS.find((g) => g.id === objectiveState.goal) || GOAL_OPTIONS[0];
-  const currentScenario =
-    currentGoalData.scenarios.find(
-      (s) => s.id === objectiveState.selectedScenarioId
-    ) || currentGoalData.scenarios[0];
+  const currentScenario = getScenarioById(
+    objectiveState.targetLanguage,
+    objectiveState.goal,
+    objectiveState.selectedScenarioId
+  );
   const langConfig =
     SUPPORTED_LANGUAGES.find((l) => l.name === objectiveState.targetLanguage) ||
     SUPPORTED_LANGUAGES[0];
@@ -97,35 +96,11 @@ export const ConversationStudio: React.FC<ConversationStudioProps> = ({
 
   // Initialize conversation and trigger initial spoken greeting
   useEffect(() => {
-    const initialGreeting =
-      currentScenario?.initialGreeting ||
-      `¡Hola! Bienvenido. ¿En qué puedo ayudarte hoy?`;
-
-    const initialMessage: ChatMessage = {
-      id: 'msg-0',
-      role: 'assistant',
-      content: initialGreeting,
-      translation:
-        objectiveState.targetLanguage === 'French'
-          ? 'Hello! Welcome. How can I help you today?'
-          : 'Hello! Welcome. How can I assist you today?',
-      timestamp: Date.now(),
-      vocabHints: [
-        { word: 'bienvenido', meaning: 'welcome', partOfSpeech: 'adjective' },
-        { word: 'ayudar', meaning: 'to help / assist', partOfSpeech: 'verb' },
-      ],
-      suggestedReplies:
-        objectiveState.targetLanguage === 'French'
-          ? [
-              'Bonjour ! Je voudrais une table, s’il vous plaît.',
-              'Avez-vous des recommandations ?',
-            ]
-          : [
-              '¡Hola! Quisiera una mesa para dos, por favor.',
-              '¿Qué me recomienda hoy?',
-              'Estoy aquí para mi reunión.',
-            ],
-    };
+    const initialMessage = getInitialMessageForScenario(
+      objectiveState.targetLanguage,
+      objectiveState.goal,
+      objectiveState.selectedScenarioId
+    );
 
     setMessages([initialMessage]);
     setElapsedSeconds(0);
@@ -144,7 +119,7 @@ export const ConversationStudio: React.FC<ConversationStudioProps> = ({
 
       // Speak initial greeting aloud
       setTimeout(() => {
-        speakCharacterMessage(initialGreeting);
+        speakCharacterMessage(initialMessage.content);
       }, 400);
     }, 1200);
 
@@ -520,11 +495,18 @@ export const ConversationStudio: React.FC<ConversationStudioProps> = ({
         speakCharacterMessage(data.reply);
       }
     } catch (e) {
-      console.error(e);
+      const fallbackPhrases: Record<string, string> = {
+        Spanish: '¡Muy bien! Comprendo lo que dices. ¿Cómo te gustaría continuar?',
+        French: 'Très bien ! Je comprends parfaitement ce que vous dites. Comment souhaitez-vous continuer ?',
+        German: 'Sehr gut! Ich verstehe vollkommen. Wie möchten Sie fortfahren?',
+        Italian: 'Molto bene! Ho capito perfettamente. Come preferisci procedere?',
+        Japanese: 'かしこまりました！よくわかりました。次はいかがいたしましょうか？',
+        Portuguese: 'Muito bem! Compreendo perfeitamente. Como gostaria de continuar?',
+        Mandarin: '很好！我完全明白您的意思了。请问接下来您想怎么继续？',
+      };
       const fallbackText =
-        objectiveState.targetLanguage === 'Spanish'
-          ? '¡Muy bien! Comprendo lo que dices. ¿Prefieres probar la especialidad de la casa?'
-          : 'Very well! Let us continue practicing this situation together.';
+        fallbackPhrases[objectiveState.targetLanguage] ||
+        'Very well! I understand what you say. How would you like to proceed?';
 
       const fallback: ChatMessage = {
         id: `msg-${Date.now() + 1}`,

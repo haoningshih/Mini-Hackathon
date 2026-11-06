@@ -217,6 +217,7 @@ export default function App() {
         {/* TAB 2: AI Immersion Chat */}
         {currentTab === 'chat' && (
           <ConversationStudio
+            key={`${objectiveState.targetLanguage}-${objectiveState.selectedScenarioId}`}
             objectiveState={objectiveState}
             onFinishAndGenerateReport={handleFinishAndGenerateReport}
             onOpenTutor={handleOpenTutor}
